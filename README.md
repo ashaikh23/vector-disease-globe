@@ -85,33 +85,6 @@ Drive Link: https://drive.google.com/file/d/134ldGZN7-PGTFalisL7epE_wPyR4tHgy/vi
 
 ---
 
-## 📂 Project Structure  
-
-```
-
-vector-disease-globe/
-│── models/                   # Saved ML models
-│── ne\_50m\_land/              # Natural Earth shapefiles (land polygons)
-│── out/                      # Historical GeoJSON risk predictions
-│── out\_forecast/             # Forecasted GeoJSON predictions
-│── out\_land/                 # Land-only filtered GeoJSON predictions
-│── build\_land\_mask.py        # Preprocess land polygons → land\_mask.csv
-│── dataset.csv               # Input dataset
-│── export\_all.py             # Batch export all disease/month GeoJSONs
-│── forecast\_train.py         # XGBoost training for forecasting
-│── forecast\_to\_geojson.py    # Convert forecast outputs to GeoJSON
-│── global\_risk\_predictions.csv
-│── globe\_with\_risk.html      # Alternative globe visualization
-│── index.html                # Main CesiumJS frontend
-│── land\_mask.csv             # Preprocessed land mask
-│── local\_training.py         # Local ML training
-│── months.txt                # List of supported months
-│── predict\_to\_geojson.py     # Convert predictions → GeoJSON
-│── simple\_training.py        # Baseline training script
-│── train.py                  # Full training pipeline
-│── README.md                 # Project documentation
-
-````
 
 ---
 

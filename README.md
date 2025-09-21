@@ -65,7 +65,7 @@ An interactive 3D visualization and forecasting tool for global vector-borne dis
 
 ## 🚀 Demo  
 
-Drive Link: https://docs.google.com/document/d/1FIDBYhL9w_edB6SlbBJ-zsUmxxOEJOQ0TxdgZpb_HaI/edit?usp=sharing
+Drive Link: https://drive.google.com/file/d/134ldGZN7-PGTFalisL7epE_wPyR4tHgy/view?usp=sharing
 
 ## 🛠️ Tech Stack  
 

@@ -1,0 +1,6 @@
+
+# Large binaries
+assets/
+*.mp4
+*.mov
+

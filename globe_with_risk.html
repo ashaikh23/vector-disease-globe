@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Risk Globe</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <style>
+        html, body, #cesiumContainer {
+            width: 100%; 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(42, 42, 42, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        
+        .control-panel h2 {
+            margin: 0 0 15px 0;
+            color: #00d4ff;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .control-group select, .control-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+        }
+        
+        .control-group button {
+            background: #00d4ff;
+            color: black;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .control-group button:hover {
+            background: #0099cc;
+        }
+        
+        .stats-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(42, 42, 42, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            min-width: 250px;
+        }
+        
+        .stats-panel h3 {
+            margin: 0 0 10px 0;
+            color: #00d4ff;
+        }
+        
+        .stat-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(42, 42, 42, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 2000;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(42, 42, 42, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            min-width: 200px;
+        }
+        
+        .legend h3 {
+            margin: 0 0 10px 0;
+            color: #00d4ff;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 12px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    
+    <div class="control-panel">
+        <h2>🌍 Disease Risk Globe</h2>
+        
+        <div class="control-group">
+            <label for="diseaseSelect">Disease Type:</label>
+            <select id="diseaseSelect">
+                <option value="all">All Diseases</option>
+                <option value="dengue">Dengue</option>
+                <option value="malaria">Malaria</option>
+                <option value="lyme">Lyme Disease</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="riskThreshold">Risk Threshold:</label>
+            <input type="range" id="riskThreshold" min="0" max="1" step="0.01" value="0.1">
+            <span id="thresholdValue">0.10</span>
+        </div>
+        
+        <div class="control-group">
+            <button onclick="updateVisualization()">Update Visualization</button>
+            <button onclick="resetView()">Reset View</button>
+        </div>
+    </div>
+    
+    <div class="stats-panel">
+        <h3>📊 Statistics</h3>
+        <div id="statsContent">
+            <div class="stat-item">Loading data...</div>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h3>🎨 Risk Legend</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgb(0, 50, 100);"></div>
+            <span>Very Low (0-0.05)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgb(0, 100, 200);"></div>
+            <span>Low (0.05-0.15)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgb(100, 200, 255);"></div>
+            <span>Medium-Low (0.15-0.25)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgb(255, 255, 100);"></div>
+            <span>Medium (0.25-0.35)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgb(255, 200, 0);"></div>
+            <span>Medium-High (0.35-0.5)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgb(255, 100, 0);"></div>
+            <span>High (0.5-0.7)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgb(200, 0, 0);"></div>
+            <span>Very High (0.7+)</span>
+        </div>
+    </div>
+    
+    <div id="loading" class="loading" style="display: none;">
+        <h3>Loading Disease Risk Data...</h3>
+        <p>Processing predictions...</p>
+    </div>
+
+    <script>
+        class DiseaseRiskGlobe {
+            constructor() {
+                this.viewer = null;
+                this.riskData = [];
+                this.currentDisease = 'all';
+                this.riskThreshold = 0.1;
+                this.init();
+            }
+
+            async init() {
+                console.log('Initializing Disease Risk Globe...');
+                
+                // Show loading
+                document.getElementById('loading').style.display = 'block';
+                
+                try {
+                    // Initialize Cesium viewer
+                    this.viewer = new Cesium.Viewer('cesiumContainer', {
+                        timeline: false,
+                        animation: false,
+                        homeButton: false,
+                        sceneModePicker: false,
+                        baseLayerPicker: false,
+                        navigationHelpButton: false,
+                        fullscreenButton: false,
+                        vrButton: false
+                    });
+
+                    console.log('Cesium viewer created');
+
+                    // Configure Earth appearance
+                    this.setupEarth();
+
+                    // Set initial camera position for better Earth view
+                    this.viewer.camera.setView({
+                        destination: Cesium.Cartesian3.fromDegrees(0, 0, 12000000),
+                        orientation: {
+                            heading: 0.0,
+                            pitch: Cesium.Math.toRadians(-45),
+                            roll: 0.0
+                        }
+                    });
+                    
+                    // Enable terrain following
+                    this.viewer.scene.globe.depthTestAgainstTerrain = true;
+
+                    // Load risk data
+                    await this.loadRiskData();
+                    
+                    // Setup event listeners
+                    this.setupEventListeners();
+                    
+                    // Update statistics
+                    this.updateStatistics();
+                    
+                    // Hide loading
+                    document.getElementById('loading').style.display = 'none';
+                    
+                } catch (error) {
+                    console.error('Error initializing Cesium viewer:', error);
+                    document.getElementById('loading').innerHTML = '<h3>Error Loading Globe</h3><p>Please check console for details</p>';
+                }
+            }
+
+            setupEarth() {
+                // Configure Earth appearance for realistic look
+                this.viewer.scene.globe.enableLighting = true;
+                this.viewer.scene.globe.dynamicAtmosphereLighting = true;
+                this.viewer.scene.globe.atmosphereLightIntensity = 10.0;
+                this.viewer.scene.globe.depthTestAgainstTerrain = true;
+                this.viewer.scene.skyAtmosphere.show = true;
+                this.viewer.scene.fog.enabled = true;
+                
+                // Enable terrain following for better surface projection
+                this.viewer.scene.globe.enableLighting = true;
+                this.viewer.scene.globe.showGroundAtmosphere = true;
+                this.viewer.scene.globe.atmosphereLightIntensity = 10.0;
+                this.viewer.scene.globe.atmosphereMieCoefficient = new Cesium.Cartesian3(21e-6, 21e-6, 21e-6);
+                this.viewer.scene.globe.atmosphereMieScaleHeight = 1200.0;
+                this.viewer.scene.globe.atmosphereRayleighCoefficient = new Cesium.Cartesian3(5.5e-6, 13.0e-6, 28.4e-6);
+                this.viewer.scene.globe.atmosphereRayleighScaleHeight = 8000.0;
+                
+                // Ensure proper terrain rendering
+                this.viewer.scene.globe.depthTestAgainstTerrain = true;
+                this.viewer.scene.globe.show = true;
+            }
+
+            async loadRiskData() {
+                console.log('Loading risk prediction data...');
+                
+                try {
+                    // Try to load from CSV file
+                    const response = await fetch('global_risk_predictions.csv');
+                    if (response.ok) {
+                        const csvText = await response.text();
+                        this.riskData = this.parseCSV(csvText);
+                        console.log(`Loaded ${this.riskData.length} risk predictions`);
+                    } else {
+                        console.log('CSV file not found, generating sample data...');
+                        this.riskData = this.generateSampleData();
+                    }
+                } catch (error) {
+                    console.log('Error loading CSV, generating sample data:', error);
+                    this.riskData = this.generateSampleData();
+                }
+            }
+
+            parseCSV(csvText) {
+                const lines = csvText.split('\n');
+                const headers = lines[0].split(',');
+                const data = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim()) {
+                        const values = lines[i].split(',');
+                        const row = {};
+                        headers.forEach((header, index) => {
+                            row[header.trim()] = parseFloat(values[index]) || 0;
+                        });
+                        data.push(row);
+                    }
+                }
+                
+                return data;
+            }
+
+            generateSampleData() {
+                console.log('Generating sample risk data...');
+                const data = [];
+                
+                // Generate sample data for demonstration
+                for (let lat = -60; lat <= 60; lat += 2) {
+                    for (let lon = -180; lon <= 180; lon += 2) {
+                        // Generate realistic risk patterns
+                        const dengueRisk = Math.max(0, Math.sin(lat * Math.PI / 180) * 0.3 + Math.random() * 0.2);
+                        const malariaRisk = Math.max(0, Math.cos(lat * Math.PI / 180) * 0.4 + Math.random() * 0.3);
+                        const lymeRisk = Math.max(0, Math.abs(lat) / 90 * 0.2 + Math.random() * 0.1);
+                        
+                        data.push({
+                            lat: lat,
+                            lon: lon,
+                            dengue_risk: dengueRisk,
+                            malaria_risk: malariaRisk,
+                            lyme_risk: lymeRisk
+                        });
+                    }
+                }
+                
+                return data;
+            }
+
+            getRiskColor(riskScore, disease) {
+                // Enhanced color coding for better visibility
+                if (riskScore < 0.05) return Cesium.Color.fromBytes(0, 50, 100, 255);     // Very low - Dark blue
+                if (riskScore < 0.15) return Cesium.Color.fromBytes(0, 100, 200, 255);   // Low - Blue
+                if (riskScore < 0.25) return Cesium.Color.fromBytes(100, 200, 255, 255); // Medium-low - Light blue
+                if (riskScore < 0.35) return Cesium.Color.fromBytes(255, 255, 100, 255); // Medium - Yellow
+                if (riskScore < 0.5) return Cesium.Color.fromBytes(255, 200, 0, 255);    // Medium-high - Orange
+                if (riskScore < 0.7) return Cesium.Color.fromBytes(255, 100, 0, 255);    // High - Red-orange
+                return Cesium.Color.fromBytes(200, 0, 0, 255);                            // Very high - Dark red
+            }
+
+            getColorWithAlpha(color, alpha) {
+                // Enhanced alpha handling for better visibility
+                const alphaValue = Math.floor(alpha * 200 + 55); // Minimum 55 alpha for visibility
+                return Cesium.Color.fromBytes(
+                    color.red * 255,
+                    color.green * 255, 
+                    color.blue * 255,
+                    alphaValue
+                );
+            }
+
+            renderRiskData() {
+                console.log('Rendering risk data...');
+                this.viewer.entities.removeAll();
+
+                if (!this.riskData || this.riskData.length === 0) {
+                    console.log('No risk data to render');
+                    return;
+                }
+
+                const filteredData = this.riskData.filter(point => {
+                    let riskScore = 0;
+                    
+                    if (this.currentDisease === 'all') {
+                        riskScore = Math.max(
+                            point.dengue_risk || 0,
+                            point.malaria_risk || 0,
+                            point.lyme_risk || 0
+                        );
+                    } else {
+                        riskScore = point[`${this.currentDisease}_risk`] || 0;
+                    }
+                    
+                    return riskScore >= this.riskThreshold;
+                });
+
+                console.log(`Rendering ${filteredData.length} risk areas`);
+
+                filteredData.forEach((point, index) => {
+                    const lat = parseFloat(point.lat);
+                    const lon = parseFloat(point.lon);
+
+                    if (isNaN(lat) || isNaN(lon)) return;
+
+                    let riskScore = 0;
+                    let disease = this.currentDisease;
+                    
+                    if (this.currentDisease === 'all') {
+                        // Find the highest risk disease
+                        const dengueRisk = point.dengue_risk || 0;
+                        const malariaRisk = point.malaria_risk || 0;
+                        const lymeRisk = point.lyme_risk || 0;
+                        
+                        if (dengueRisk >= malariaRisk && dengueRisk >= lymeRisk) {
+                            riskScore = dengueRisk;
+                            disease = 'dengue';
+                        } else if (malariaRisk >= lymeRisk) {
+                            riskScore = malariaRisk;
+                            disease = 'malaria';
+                        } else {
+                            riskScore = lymeRisk;
+                            disease = 'lyme';
+                        }
+                    } else {
+                        riskScore = point[`${this.currentDisease}_risk`] || 0;
+                    }
+
+                    const color = this.getRiskColor(riskScore, disease);
+                    const alpha = Math.min(riskScore * 1.2, 0.8); // Increased alpha for better visibility
+
+                    // Create risk area as polygon with proper surface projection
+                    const size = 1.0; // Optimal size for surface projection
+                    const positions = [
+                        Cesium.Cartesian3.fromDegrees(lon - size/2, lat - size/2),
+                        Cesium.Cartesian3.fromDegrees(lon + size/2, lat - size/2),
+                        Cesium.Cartesian3.fromDegrees(lon + size/2, lat + size/2),
+                        Cesium.Cartesian3.fromDegrees(lon - size/2, lat + size/2)
+                    ];
+
+                    this.viewer.entities.add({
+                        polygon: {
+                            hierarchy: positions,
+                            material: this.getColorWithAlpha(color, alpha),
+                            outline: false,
+                            height: 0,
+                            extrudedHeight: 0,
+                            classificationType: Cesium.ClassificationType.TERRAIN,
+                            clampToGround: true
+                        },
+                        properties: {
+                            riskScore: riskScore,
+                            disease: disease,
+                            lat: lat,
+                            lon: lon
+                        }
+                    });
+                });
+
+                console.log(`Rendered ${filteredData.length} risk areas`);
+            }
+
+            updateStatistics() {
+                if (!this.riskData || this.riskData.length === 0) {
+                    document.getElementById('statsContent').innerHTML = '<div class="stat-item">No data available</div>';
+                    return;
+                }
+
+                const stats = this.calculateStatistics();
+                const statsHtml = `
+                    <div class="stat-item">Total Points: ${stats.totalPoints}</div>
+                    <div class="stat-item">Visible Points: ${stats.visiblePoints}</div>
+                    <div class="stat-item">Dengue Risk: ${stats.dengueRisk.toFixed(3)}</div>
+                    <div class="stat-item">Malaria Risk: ${stats.malariaRisk.toFixed(3)}</div>
+                    <div class="stat-item">Lyme Risk: ${stats.lymeRisk.toFixed(3)}</div>
+                `;
+                
+                document.getElementById('statsContent').innerHTML = statsHtml;
+            }
+
+            calculateStatistics() {
+                const totalPoints = this.riskData.length;
+                let visiblePoints = 0;
+                let dengueRisk = 0, malariaRisk = 0, lymeRisk = 0;
+
+                this.riskData.forEach(point => {
+                    const dengue = point.dengue_risk || 0;
+                    const malaria = point.malaria_risk || 0;
+                    const lyme = point.lyme_risk || 0;
+                    
+                    if (Math.max(dengue, malaria, lyme) >= this.riskThreshold) {
+                        visiblePoints++;
+                    }
+                    
+                    dengueRisk += dengue;
+                    malariaRisk += malaria;
+                    lymeRisk += lyme;
+                });
+
+                return {
+                    totalPoints,
+                    visiblePoints,
+                    dengueRisk: dengueRisk / totalPoints,
+                    malariaRisk: malariaRisk / totalPoints,
+                    lymeRisk: lymeRisk / totalPoints
+                };
+            }
+
+            setupEventListeners() {
+                // Disease selection
+                document.getElementById('diseaseSelect').addEventListener('change', (e) => {
+                    this.currentDisease = e.target.value;
+                    this.renderRiskData();
+                    this.updateStatistics();
+                });
+
+                // Risk threshold
+                const thresholdSlider = document.getElementById('riskThreshold');
+                const thresholdValue = document.getElementById('thresholdValue');
+                
+                thresholdSlider.addEventListener('input', (e) => {
+                    this.riskThreshold = parseFloat(e.target.value);
+                    thresholdValue.textContent = this.riskThreshold.toFixed(2);
+                });
+            }
+        }
+
+        // Global functions for buttons
+        function updateVisualization() {
+            if (window.globe) {
+                window.globe.renderRiskData();
+                window.globe.updateStatistics();
+            }
+        }
+
+        function resetView() {
+            if (window.globe && window.globe.viewer) {
+                window.globe.viewer.camera.setView({
+                    destination: Cesium.Cartesian3.fromDegrees(0, 0, 12000000),
+                    orientation: {
+                        heading: 0.0,
+                        pitch: Cesium.Math.toRadians(-45),
+                        roll: 0.0
+                    }
+                });
+            }
+        }
+
+        // Initialize globe
+        window.globe = new DiseaseRiskGlobe();
+    </script>
+</body>
+</html>

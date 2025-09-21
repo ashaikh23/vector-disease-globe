@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Vector-Borne Disease Risk Globe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Cesium.js" defer></script>
+  <style>
+    :root { --panel: rgba(20,24,33,.88); --text:#e9eef8; --accent:#8fbaff; --badge:#ffd166; }
+    html,body{width:100%;height:100%;margin:0;background:#0b0e13}
+    #viewer{width:100%;height:100%}
+    #toolbar{position:absolute;top:12px;left:12px;z-index:10;display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--panel);color:var(--text);padding:10px 12px;border-radius:10px;font:14px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    #toolbar label{display:flex;align-items:center;gap:6px}
+    #toolbar select,#toolbar input[type=range]{accent-color:var(--accent)}
+    #toolbar select{background:#121722;color:var(--text);border:1px solid #263043;border-radius:8px;padding:6px 8px}
+    #monthLabel{min-width:100px;text-align:center;font-weight:600}
+    #legend{position:absolute;bottom:18px;left:12px;z-index:10;color:var(--text);font:13px/1.2 system-ui;background:var(--panel);padding:8px 10px;border-radius:8px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .grad{width:160px;height:10px;border-radius:6px;background:linear-gradient(90deg,#1e90ff 0%,#7fff00 50%,#ff4500 100%);outline:1px solid rgba(255,255,255,.15)}
+    #status{position:absolute;top:12px;right:12px;z-index:10;background:var(--panel);color:var(--text);padding:8px 10px;border-radius:8px;font:12px/1.2 system-ui;display:none}
+    #modeBadge{position:absolute;top:60px;left:12px;z-index:10;background:var(--badge);color:#222;padding:4px 8px;border-radius:6px;font:12px/1.2 system-ui;display:none}
+    #viewOptions{position:absolute;right:12px;bottom:18px;z-index:10;background:var(--panel);color:var(--text);padding:10px 12px;border-radius:10px;font:13px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);width:240px}
+    #viewOptions .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0}
+    #viewOptions select,#viewOptions input[type=range]{width:140px;background:#121722;color:var(--text);border:1px solid #263043;border-radius:8px;padding:4px 6px;accent-color:var(--accent)}
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <label> Disease
+      <select id="diseaseSel">
+        <option value="dengue" selected>Dengue</option>
+        <option value="malaria">Malaria</option>
+        <option value="lyme">Lyme</option>
+      </select>
+    </label>
+    <label style="gap:10px;"> Month
+      <input id="monthRange" type="range" min="0" max="1" value="0" step="1" />
+      <span id="monthLabel">—</span>
+    </label>
+  </div>
+
+  <div id="modeBadge">Forecast</div>
+
+  <div id="legend">
+    <span>Risk</span><div class="grad" id="legendGrad"></div><span>Low → High</span>
+  </div>
+
+  <div id="viewOptions">
+    <div class="row">
+      <div>Palette</div>
+      <select id="paletteSel">
+        <option value="blue-green-red" selected>Blue→Green→Red</option>
+        <option value="viridis">Viridis</option>
+        <option value="magma">Magma</option>
+        <option value="inferno">Inferno</option>
+        <option value="plasma">Plasma</option>
+      </select>
+    </div>
+    <div class="row">
+      <div>Top N%</div>
+      <select id="topPct">
+        <option value="0" selected>Off</option>
+        <option value="20">Top 20%</option>
+        <option value="10">Top 10%</option>
+        <option value="5">Top 5%</option>
+        <option value="1">Top 1%</option>
+      </select>
+    </div>
+    <div class="row">
+      <div>Dot size</div>
+      <input id="dotSize" type="range" min="3" max="12" step="1" value="6" />
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <div id="viewer"></div>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      function monthsList(y0,m0,y1,m1){const out=[];for(let y=y0;y<=y1;y++){const mStart=(y===y0)?m0:1;const mEnd=(y===y1)?m1:12;for(let m=mStart;m<=mEnd;m++)out.push(`${y}-${String(m).padStart(2,"0")}-01`);}return out;}
+      const MONTHS=monthsList(2015,1,2025,12);
+      const LAST_HISTORY="2024-12-01";
+
+      function rampBGR(r){return Cesium.Color.fromHsl((1.0-r)*0.66,1.0,0.5,0.9);}
+      const STOPS={viridis:[{p:0,c:[0.267,0.005,0.329]},{p:.25,c:[0.283,0.141,0.458]},{p:.5,c:[0.127,0.566,0.55]},{p:.75,c:[0.477,0.821,0.318]},{p:1,c:[0.993,0.906,0.144]}]};
+      function rampFromStops(stops,r){for(let i=1;i<stops.length;i++){if(r<=stops[i].p){const a=stops[i-1],b=stops[i];const t=(r-a.p)/(b.p-a.p+1e-9);const c=[a.c[0]+t*(b.c[0]-a.c[0]),a.c[1]+t*(b.c[1]-a.c[1]),a.c[2]+t*(b.c[2]-a.c[2])];return new Cesium.Color(c[0],c[1],c[2],0.9);}}const c=stops[stops.length-1].c;return new Cesium.Color(c[0],c[1],c[2],0.9);}
+      function colorFunc(name){if(name==="blue-green-red")return rampBGR;return (r)=>rampFromStops(STOPS.viridis,r);}
+
+      function setLegend(name){const el=document.getElementById("legendGrad");if(name==="blue-green-red"){el.style.background="linear-gradient(90deg,#1e90ff 0%,#7fff00 50%,#ff4500 100%)";}else{el.style.background="linear-gradient(90deg,#440154 0%,#31688e 35%,#35b779 65%,#fde725 100%)";}}
+
+      const status=document.getElementById("status"),badge=document.getElementById("modeBadge");
+      function showStatus(msg){status.textContent=msg;status.style.display="block";clearTimeout(showStatus._t);showStatus._t=setTimeout(()=>status.style.display="none",1200);}
+      function isHistory(month){return month<=LAST_HISTORY;}
+      function dataUrl(disease,month){const dir=isHistory(month)?"out_land":"out_forecast";return`./${dir}/${disease}/${month}.geojson?v=${Date.now()}`;}
+
+      Cesium.Ion.defaultAccessToken="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxYTFjNjZiOS02NTdkLTQzNDgtOWVkMC0yYWNhOTcxMDMwOGQiLCJpZCI6MzQzMTc4LCJpYXQiOjE3NTg0MDIxMzB9.E3FurhQTtpreBksaheQxnf2UqRzsZ8VF9G2scatT8SI";
+      const viewer=new Cesium.Viewer("viewer",{terrain:Cesium.Terrain.fromWorldTerrain(),baseLayerPicker:false,animation:false,timeline:false,geocoder:false,sceneModePicker:true});
+      try{viewer.imageryLayers.removeAll();const ion=await Cesium.createWorldImageryAsync({style:Cesium.IonWorldImageryStyle.AERIAL_WITH_LABELS});viewer.imageryLayers.addImageryProvider(ion);}catch(e){console.warn("fallback OSM",e);viewer.imageryLayers.removeAll();viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",credit:"© OpenStreetMap contributors"}));}
+      viewer.scene.globe.depthTestAgainstTerrain=true;viewer.scene.globe.enableLighting=true;
+
+      const diseaseSel=document.getElementById("diseaseSel"),monthRange=document.getElementById("monthRange"),monthLabel=document.getElementById("monthLabel"),paletteSel=document.getElementById("paletteSel"),topPct=document.getElementById("topPct"),dotSize=document.getElementById("dotSize");
+      monthRange.min=0;monthRange.max=MONTHS.length-1;
+      function setMonthIndex(idx){const i=Math.max(0,Math.min(MONTHS.length-1,idx|0));monthRange.value=i;monthLabel.textContent=MONTHS[i];badge.style.display=isHistory(MONTHS[i])?"none":"inline-block";}
+      setMonthIndex(MONTHS.indexOf("2024-07-01"));setLegend(paletteSel.value);
+
+      let currentDS=null,currentRisks=[];
+      function applyFilters(){if(!currentDS)return;const ents=currentDS.entities.values,N=ents.length;const cFunc=colorFunc(paletteSel.value);const pct=parseInt(topPct.value,10)||0;let pctThresh=0;if(pct>0&&currentRisks.length===N){const sorted=[...currentRisks].sort((a,b)=>a-b);const k=Math.max(0,Math.min(N-1,Math.floor((1-pct/100)*N)));pctThresh=sorted[k];}
+        for(let i=0;i<N;i++){const e=ents[i];const r=currentRisks[i];const show=pct>0?(r>=pctThresh):true;e.show=show;if(e.point){e.point.pixelSize=Number(dotSize.value);e.point.color=cFunc(r);}}
+        viewer.scene.requestRender();}
+      async function loadGeoJSON(url){if(currentDS){await viewer.dataSources.remove(currentDS,true);currentDS=null;}showStatus("Loading…");const ds=await Cesium.GeoJsonDataSource.load(url,{clampToGround:true});viewer.dataSources.add(ds);const now=Cesium.JulianDate.now();const ents=ds.entities.values;currentRisks=new Array(ents.length);const cFunc=colorFunc(paletteSel.value);for(let i=0;i<ents.length;i++){const e=ents[i];const r=e.properties.risk.getValue(now);currentRisks[i]=r;if(!e.point)e.point=new Cesium.PointGraphics();e.point.pixelSize=Number(dotSize.value);e.point.color=cFunc(r);e.point.heightReference=Cesium.HeightReference.CLAMP_TO_GROUND;e.point.disableDepthTestDistance=0;}currentDS=ds;applyFilters();viewer.flyTo(ds,{duration:0.8});showStatus("Loaded");}
+      async function refresh(){const disease=diseaseSel.value,month=MONTHS[monthRange.value];const url=dataUrl(disease,month);try{await loadGeoJSON(url);}catch(e){console.error("Failed to load",url,e);alert(`Could not load ${url}`);}}
+
+      diseaseSel.addEventListener("change",refresh);
+      monthRange.addEventListener("input",()=>{setMonthIndex(monthRange.value);});
+      monthRange.addEventListener("change",refresh);
+      paletteSel.addEventListener("change",()=>{setLegend(paletteSel.value);applyFilters();});
+      topPct.addEventListener("change",applyFilters);
+      dotSize.addEventListener("input",applyFilters);
+
+      refresh();
+    });
+  </script>
+</body>
+</html>

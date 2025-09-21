@@ -42,31 +42,6 @@ An interactive 3D visualization and forecasting tool for global vector-borne dis
 
 ---
 
-## 📂 Project Structure  
-vector-disease-globe/
-│── models/ # Saved ML models
-│── ne_50m_land/ # Natural Earth shapefiles (land polygons)
-│── out/ # Historical GeoJSON risk predictions
-│── out_forecast/ # Forecasted GeoJSON predictions
-│── out_land/ # Land-only filtered GeoJSON predictions
-│── build_land_mask.py # Preprocess land polygons → land_mask.csv
-│── dataset.csv # Input dataset
-│── export_all.py # Batch export all disease/month GeoJSONs
-│── forecast_train.py # XGBoost training for forecasting
-│── forecast_to_geojson.py # Convert forecast outputs to GeoJSON
-│── global_risk_predictions.csv
-│── globe_with_risk.html # Alternative globe visualization
-│── index.html # Main CesiumJS frontend
-│── land_mask.csv # Preprocessed land mask
-│── local_training.py # Local ML training
-│── months.txt # List of supported months
-│── predict_to_geojson.py # Convert predictions → GeoJSON
-│── simple_training.py # Baseline training script
-│── train.py # Full training pipeline
-│── README.md # Project documentation
-
-Got it 👍 — here’s the **full `README.md` file** you can drop directly into your repo.
-
 ```markdown
 # 🌍 Vector Disease Globe  
 

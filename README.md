@@ -90,9 +90,9 @@ An interactive 3D visualization and forecasting tool for global vector-borne dis
 
 ## 🚀 Demo  
 
-(Add a GIF or screenshot of your globe here)  
-
----
+<video src="assets/epiglobe.mp4" controls width="600">
+  Your browser does not support the video tag.
+</video>
 
 ## 🛠️ Tech Stack  
 
@@ -238,7 +238,7 @@ Vector-borne diseases affect billions worldwide. Our goal was to create a **visu
 
 ## 👥 Team
 
-* Abhinav Barat (Lead Developer, ML & Visualization)
+* Abhinav Barat & Aymaan Shaikh
 
 ---
 
@@ -248,11 +248,5 @@ MIT License – feel free to fork, modify, and build on top of this project.
 
 ```
 
----
-
-👉 This is a **ready-to-use `README.md` file**. You just paste it into your repo, commit, and push.  
-
-Do you also want me to create a **`requirements.txt`** file based on your project so others can install everything in one go?
-```
 
 

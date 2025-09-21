@@ -90,9 +90,7 @@ An interactive 3D visualization and forecasting tool for global vector-borne dis
 
 ## 🚀 Demo  
 
-<video src="assets/epiglobe.mp4" controls width="600">
-  Your browser does not support the video tag.
-</video>
+Drive Link: https://docs.google.com/document/d/1FIDBYhL9w_edB6SlbBJ-zsUmxxOEJOQ0TxdgZpb_HaI/edit?usp=sharing
 
 ## 🛠️ Tech Stack  
 

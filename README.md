@@ -20,7 +20,7 @@ An interactive 3D visualization and forecasting tool for global vector-borne dis
 
 ## 🚀 Demo  
 
-(Add screenshot or GIF here showing your globe in action)  
+https://drive.google.com/file/d/134ldGZN7-PGTFalisL7epE_wPyR4tHgy/view?usp=sharing
 
 ---
 
